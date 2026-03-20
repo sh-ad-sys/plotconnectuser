@@ -1,61 +1,56 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+
 import Login from './components/Login';
 import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
-import './App.css';
 
-// Component to handle URL-based routing
-function AppRouter() {
+function ProtectedRoute({ children, role }) {
   const navigate = useNavigate();
-  const location = useLocation();
-  
+
   useEffect(() => {
-    const hostname = window.location.hostname;
-    
-    // If accessing admin subdomain, redirect to admin
-    if (hostname.includes('admin')) {
-      if (location.pathname !== '/admin') {
-        navigate('/admin', { replace: true });
-      }
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const storedRole = localStorage.getItem('role');
+
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
     }
-  }, [navigate, location]);
 
-  return (
-    <div className="App">
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<UserDashboard />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        {/* Default route - redirect based on hostname */}
-        <Route path="/" element={<RootRouter />} />
-      </Routes>
-    </div>
-  );
-}
-
-// Separate component to handle root redirect
-function RootRouter() {
-  const navigate = useNavigate();
-  
-  useEffect(() => {
-    const hostname = window.location.hostname;
-    
-    // If accessing admin subdomain, redirect to admin dashboard
-    if (hostname.includes('admin')) {
-      navigate('/admin', { replace: true });
-    } else {
-      navigate('/login', { replace: true });
+    if (role && role !== storedRole) {
+      navigate('/login');
     }
-  }, [navigate]);
+  }, []);
 
-  return null;
+  return children;
 }
 
 function App() {
   return (
     <Router>
-      <AppRouter />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute role="marketer">
+              <UserDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/" element={<Login />} />
+      </Routes>
     </Router>
   );
 }
