@@ -28,7 +28,9 @@ function Login() {
       });
 
       if (result.success) {
+        localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('role', 'admin');
+        localStorage.setItem('username', result.data?.username || 'admin');
         navigate('/admin');
         return;
       }
@@ -40,7 +42,9 @@ function Login() {
       });
 
       if (result.success) {
+        localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('role', 'marketer');
+        localStorage.setItem('name', result.data?.name || loginData.identifier);
         navigate('/dashboard');
         return;
       }
