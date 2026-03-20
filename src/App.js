@@ -20,7 +20,7 @@ function ProtectedRoute({ children, role }) {
     if (role && role !== storedRole) {
       navigate('/login');
     }
-  }, []);
+  }, [navigate, role]);
 
   return children;
 }
