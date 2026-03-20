@@ -68,7 +68,7 @@ function Login() {
       </div>
 
       <div className="user-card" style={{ maxWidth: '420px', margin: '0 auto', width: '90%' }}>
-        <h2 className="user-card-title">Login</h2>
+        <h2 className="user-card-title" style={{ textAlign: 'center' }}>Login</h2>
 
         {error && (
           <div className="user-alert user-alert-error" style={{ marginBottom: '1rem' }}>
@@ -117,7 +117,7 @@ function Login() {
                   fontSize: '0.9rem'
                 }}
               >
-                {showPassword ? 'HIDE' : 'SHOW'}
+                {showPassword ? '*' : '○'}
               </span>
             </div>
           </div>
