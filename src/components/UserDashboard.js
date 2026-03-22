@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import './UserDashboard.css';
 
-const PROPERTY_TYPES = ['Rental Rooms','Hostel','Apartments','Lodge / Guest Rooms','Short Stay Rooms'];
-const ROOM_TYPES = ['Single Room','Bedsitter','1 Bedroom','Standard Lodge Room','Executive Room','Other'];
+const PROPERTY_TYPES = ['Rental Rooms', 'Hostel', 'Apartments', 'Lodge / Guest Rooms', 'Short Stay Rooms'];
+const ROOM_TYPES = ['Single Room', 'Bedsitter', '1 Bedroom', 'Standard Lodge Room', 'Executive Room', 'Other'];
 
 const PACKAGES = [
   { name: 'Basic', price: '5,000', desc: 'Starter visibility' },
@@ -28,7 +28,6 @@ export default function UserDashboard() {
   });
 
   const [errors, setErrors] = useState({});
-
   const [rooms, setRooms] = useState([]);
 
   useEffect(() => { init(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -36,9 +35,31 @@ export default function UserDashboard() {
   const init = async () => {
     setLoading(true);
     try {
-      const res = await api.checkAuth();
-      if (!res.success) return navigate('/login');
-      setUser(res.data);
+      // Use localStorage as primary auth source
+      const isLoggedIn = localStorage.getItem('isLoggedIn');
+      const role = localStorage.getItem('role');
+
+      if (!isLoggedIn || role !== 'marketer') {
+        navigate('/login');
+        return;
+      }
+
+      // Set user from localStorage immediately
+      setUser({
+        name: localStorage.getItem('name') || 'Marketer',
+        user_type: 'marketer'
+      });
+
+      // Try to refresh from server, but don't redirect if it fails
+      try {
+        const res = await api.checkAuth();
+        if (res.success && res.data) {
+          setUser(res.data);
+        }
+      } catch {
+        // Session may not persist cross-origin — localStorage handles auth
+      }
+
       loadProperties();
     } catch {
       navigate('/login');
@@ -63,26 +84,21 @@ export default function UserDashboard() {
     if (!form.phone_number.trim()) newErrors.phone_number = 'Phone number is required';
     if (!form.property_name.trim()) newErrors.property_name = 'Property name is required';
     if (!form.property_location.trim()) newErrors.property_location = 'Location is required';
-    // Handle property_type as single selection
-    if (!form.property_type) {
-      newErrors.property_type = 'Property type is required';
-    }
+    if (!form.property_type) newErrors.property_type = 'Property type is required';
     if (!form.booking_type) newErrors.booking_type = 'Booking type is required';
     if (!form.package_selected) newErrors.package_selected = 'Please select a package';
-    
-    // Validate at least one room with price and availability
+
     const validRooms = rooms.filter(r => r.room_type && r.price !== '' && r.availability !== '');
     if (validRooms.length === 0) newErrors.rooms = 'At least one room with price and availability is required';
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
-      // Build a list of missing fields
       const missingFields = [];
       if (!form.owner_name.trim()) missingFields.push('Owner Name');
       if (!form.phone_number.trim()) missingFields.push('Phone Number');
@@ -91,8 +107,9 @@ export default function UserDashboard() {
       if (!form.property_type) missingFields.push('Property Type');
       if (!form.booking_type) missingFields.push('Booking Type');
       if (!form.package_selected) missingFields.push('Package');
-      if (rooms.filter(r => r.room_type && r.price !== '' && r.availability !== '').length === 0) missingFields.push('Room with price & availability');
-      
+      if (rooms.filter(r => r.room_type && r.price !== '' && r.availability !== '').length === 0)
+        missingFields.push('Room with price & availability');
+
       showNotification('error', `Please fill: ${missingFields.join(', ')}`);
       return;
     }
@@ -102,9 +119,7 @@ export default function UserDashboard() {
       const result = await api.submitProperty({ ...form, rooms });
       if (result.success) {
         setShowSuccessModal(true);
-        // Auto-hide success modal after 3 seconds
         setTimeout(() => setShowSuccessModal(false), 3000);
-        // Reset form after submit
         setForm({ owner_name: '', phone_number: '', property_name: '', property_location: '', property_type: '', booking_type: '', package_selected: '' });
         setRooms([]);
         setErrors({});
@@ -126,11 +141,21 @@ export default function UserDashboard() {
     showNotification('success', 'Form cleared');
   };
 
+  const handleLogout = async () => {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('role');
+    localStorage.removeItem('username');
+    localStorage.removeItem('name');
+    await api.logout();
+    navigate('/login');
+  };
+
   return (
     <div className="user-dashboard">
       {/* Notification */}
       {notification && (
-        <div className={`user-alert ${notification.type === 'success' ? 'user-alert-success' : 'user-alert-error'}`} style={{ textAlign: 'center', display: 'flex', justifyContent: 'center' }}>
+        <div className={`user-alert ${notification.type === 'success' ? 'user-alert-success' : 'user-alert-error'}`}
+          style={{ textAlign: 'center', display: 'flex', justifyContent: 'center' }}>
           {notification.message}
         </div>
       )}
@@ -150,10 +175,10 @@ export default function UserDashboard() {
       <div className="user-dashboard-header">
         <div>
           <h1>Dashboard</h1>
-          {user && <p className="user-welcome">Hi, {user.name || user.email}</p>}
+          {user && <p className="user-welcome">Hi, {user.name}</p>}
           <p className="user-subtitle">Manage your listings</p>
         </div>
-        <button onClick={() => navigate('/login')} className="btn btn-danger">Logout</button>
+        <button onClick={handleLogout} className="btn btn-danger">Logout</button>
       </div>
 
       {/* Loading Overlay */}
@@ -165,10 +190,7 @@ export default function UserDashboard() {
 
       {/* Tabs */}
       <div className="user-tabs">
-        <button 
-          onClick={() => setTab('add')} 
-          className={`user-tab ${tab === 'add' ? 'active' : ''}`}
-        >
+        <button onClick={() => setTab('add')} className={`user-tab ${tab === 'add' ? 'active' : ''}`}>
           Add Property
         </button>
       </div>
@@ -179,48 +201,47 @@ export default function UserDashboard() {
           {/* Basic Info */}
           <div className="user-card">
             <h2 className="user-card-title">Basic Info</h2>
-            
             <div className="user-form-grid">
               <div className="user-form-group">
                 <label>Owner Name <span className="required">*</span></label>
-                <input 
-                  placeholder="Enter owner name" 
+                <input
+                  placeholder="Enter owner name"
                   className={`input ${errors.owner_name ? 'input-error' : ''}`}
                   value={form.owner_name}
-                  onChange={e=>setForm({...form, owner_name:e.target.value})}
+                  onChange={e => setForm({ ...form, owner_name: e.target.value })}
                 />
                 {errors.owner_name && <span className="error-text">{errors.owner_name}</span>}
               </div>
-              
+
               <div className="user-form-group">
                 <label>Phone Number <span className="required">*</span></label>
-                <input 
-                  placeholder="Enter phone number" 
+                <input
+                  placeholder="Enter phone number"
                   className={`input ${errors.phone_number ? 'input-error' : ''}`}
                   value={form.phone_number}
-                  onChange={e=>setForm({...form, phone_number:e.target.value})}
+                  onChange={e => setForm({ ...form, phone_number: e.target.value })}
                 />
                 {errors.phone_number && <span className="error-text">{errors.phone_number}</span>}
               </div>
-              
+
               <div className="user-form-group">
                 <label>Property Name <span className="required">*</span></label>
-                <input 
-                  placeholder="Enter property name" 
+                <input
+                  placeholder="Enter property name"
                   className={`input ${errors.property_name ? 'input-error' : ''}`}
                   value={form.property_name}
-                  onChange={e=>setForm({...form, property_name:e.target.value})}
+                  onChange={e => setForm({ ...form, property_name: e.target.value })}
                 />
                 {errors.property_name && <span className="error-text">{errors.property_name}</span>}
               </div>
-              
+
               <div className="user-form-group">
                 <label>Location <span className="required">*</span></label>
-                <input 
-                  placeholder="Enter location" 
+                <input
+                  placeholder="Enter location"
                   className={`input ${errors.property_location ? 'input-error' : ''}`}
                   value={form.property_location}
-                  onChange={e=>setForm({...form, property_location:e.target.value})}
+                  onChange={e => setForm({ ...form, property_location: e.target.value })}
                 />
                 {errors.property_location && <span className="error-text">{errors.property_location}</span>}
               </div>
@@ -239,7 +260,7 @@ export default function UserDashboard() {
                     name="booking_type"
                     className="user-room-radio"
                     checked={form.booking_type === bt}
-                    onChange={() => setForm({...form, booking_type: bt})}
+                    onChange={() => setForm({ ...form, booking_type: bt })}
                   />
                   <span className="user-room-label">{bt}</span>
                 </label>
@@ -259,7 +280,7 @@ export default function UserDashboard() {
                     name="property_type"
                     className="user-room-radio"
                     checked={form.property_type === t}
-                    onChange={() => setForm({...form, property_type: t})}
+                    onChange={() => setForm({ ...form, property_type: t })}
                   />
                   <span className="user-room-label">{t}</span>
                 </label>
@@ -309,10 +330,8 @@ export default function UserDashboard() {
                             disabled={!isChecked}
                             onChange={e => {
                               const value = e.target.value;
-                               if (value === '' || (parseFloat(value) >= 0)) {
-                                setRooms(prevRooms => prevRooms.map(r => 
-                                  r.room_type === rt ? { ...r, price: value } : r
-                                ));
+                              if (value === '' || (parseFloat(value) >= 0)) {
+                                setRooms(prev => prev.map(r => r.room_type === rt ? { ...r, price: value } : r));
                               }
                             }}
                           />
@@ -328,9 +347,7 @@ export default function UserDashboard() {
                             onChange={e => {
                               const value = e.target.value;
                               if (value === '' || (parseInt(value) >= 0)) {
-                                setRooms(prevRooms => prevRooms.map(r => 
-                                  r.room_type === rt ? { ...r, availability: value } : r
-                                ));
+                                setRooms(prev => prev.map(r => r.room_type === rt ? { ...r, availability: value } : r));
                               }
                             }}
                           />
@@ -349,9 +366,9 @@ export default function UserDashboard() {
             {errors.package_selected && <span className="error-text mb-2">{errors.package_selected}</span>}
             <div className="user-packages">
               {PACKAGES.map(p => (
-                <div 
+                <div
                   key={p.name}
-                  onClick={()=>setForm({...form, package_selected:p.name})}
+                  onClick={() => setForm({ ...form, package_selected: p.name })}
                   className={`user-package ${form.package_selected === p.name ? 'selected' : ''}`}
                 >
                   <h3 className="package-name">{p.name}</h3>

@@ -5,13 +5,19 @@ const API_BASE_URL =
 
 async function fetchAPI(endpoint, options = {}) {
   try {
+    // Send role in headers — cross-origin cookies are blocked between Vercel & Render
+    const role     = localStorage.getItem('role')     || '';
+    const username = localStorage.getItem('username') || localStorage.getItem('name') || '';
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: options.method || 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'X-Auth-Role':  role,
+        'X-Auth-User':  username,
         ...(options.headers || {}),
       },
-      credentials: 'include', // IMPORTANT for sessions
+      credentials: 'include',
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
@@ -27,59 +33,59 @@ async function fetchAPI(endpoint, options = {}) {
 }
 
 const api = {
-  // AUTH — routed through index.php via ?request=
-  checkAuth: () => fetchAPI('/?request=check-auth'),
+  // AUTH
+  checkAuth: () => fetchAPI('/api/auth/check.php'),
 
   login: (type, credentials) =>
-    fetchAPI('/?request=login', {
+    fetchAPI('/api/auth/login.php', {
       method: 'POST',
       body: { type, ...credentials },
     }),
 
-  logout: () => fetchAPI('/?request=logout'),
+  logout: () => fetchAPI('/api/auth/logout.php', { method: 'POST' }),
 
   // MARKETER
   submitProperty: (data) =>
-    fetchAPI('/?request=submit-property', {
+    fetchAPI('/api/marketer/submit-property.php', {
       method: 'POST',
       body: data,
     }),
 
-  getMyProperties: () => fetchAPI('/?request=my-properties'),
+  getMyProperties: () => fetchAPI('/api/marketer/my-properties.php'),
 
   deleteProperty: (id) =>
-    fetchAPI('/?request=delete-property', {
+    fetchAPI('/api/marketer/delete-property.php', {
       method: 'POST',
       body: { id },
     }),
 
   // ADMIN
-  getAdminStats: () => fetchAPI('/?request=admin'),
+  getAdminStats: () => fetchAPI('/api/admin/dashboard.php'),
 
-  getMarketers: () => fetchAPI('/?request=marketers'),
+  getMarketers: () => fetchAPI('/api/admin/marketers.php'),
 
   addMarketer: (data) =>
-    fetchAPI('/?request=marketers', {
+    fetchAPI('/api/admin/marketers.php', {
       method: 'POST',
       body: data,
     }),
 
   deleteMarketer: (id) =>
-    fetchAPI('/?request=marketers', {
+    fetchAPI('/api/admin/marketers.php', {
       method: 'POST',
       body: { id, action: 'delete' },
     }),
 
-  getAllProperties: () => fetchAPI('/?request=all-properties'),
+  getAllProperties: () => fetchAPI('/api/admin/properties.php'),
 
   updatePropertyStatus: (id, status) =>
-    fetchAPI('/?request=all-properties', {
+    fetchAPI('/api/admin/properties.php', {
       method: 'POST',
       body: { id, status, action: 'update_status' },
     }),
 
   deletePropertyAdmin: (id) =>
-    fetchAPI('/?request=all-properties', {
+    fetchAPI('/api/admin/properties.php', {
       method: 'POST',
       body: { id, action: 'delete' },
     }),

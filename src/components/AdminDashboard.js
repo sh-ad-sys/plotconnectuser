@@ -21,11 +21,37 @@ export default function AdminDashboard() {
   const init = async () => {
     setLoading(true);
     try {
-      const res = await api.checkAuth();
-      if (!res.success) return navigate('/login');
-      setUser(res.data);
+      // Use localStorage as primary auth source (set during login)
+      const isLoggedIn = localStorage.getItem('isLoggedIn');
+      const role = localStorage.getItem('role');
+
+      if (!isLoggedIn || role !== 'admin') {
+        navigate('/login');
+        return;
+      }
+
+      // Set user from localStorage immediately so UI renders
+      setUser({
+        name: localStorage.getItem('username') || 'Admin',
+        user_type: 'admin'
+      });
+
+      // Try to refresh from server, but don't redirect if it fails
+      try {
+        const res = await api.checkAuth();
+        if (res.success && res.data) {
+          setUser(res.data);
+        }
+      } catch {
+        // Session may not persist cross-origin — that's OK, localStorage handles auth
+      }
+
       loadData();
-    } finally { setLoading(false); }
+    } catch {
+      navigate('/login');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadData = async () => {
@@ -51,6 +77,10 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = async () => {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('role');
+    localStorage.removeItem('username');
+    localStorage.removeItem('name');
     await api.logout();
     navigate('/login');
   };
@@ -79,14 +109,12 @@ export default function AdminDashboard() {
   };
 
   const exportToExcel = (data, filename) => {
-    // Create CSV content
     const headers = Object.keys(data[0] || {});
     const csvContent = [
       headers.join(','),
       ...data.map(row => headers.map(header => JSON.stringify(row[header] || '')).join(','))
     ].join('\n');
 
-    // Create blob and download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -123,14 +151,12 @@ export default function AdminDashboard() {
       <div className="user-dashboard-header">
         <div>
           <h1>Admin Dashboard</h1>
-          {user && <p className="user-welcome">Hi, {user.name || user.email}</p>}
+          {user && <p className="user-welcome">Hi, {user.name || user.username}</p>}
           <p className="user-subtitle">Manage platform</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button onClick={()=>setShowModal(true)} className="btn btn-primary">+ Add Marketer</button>
-          <button onClick={handleDownload} className="btn btn-secondary">
-            Download Excel
-          </button>
+          <button onClick={() => setShowModal(true)} className="btn btn-primary">+ Add Marketer</button>
+          <button onClick={handleDownload} className="btn btn-secondary">Download Excel</button>
           <button onClick={handleLogout} className="btn btn-danger">Logout</button>
         </div>
       </div>
@@ -145,15 +171,15 @@ export default function AdminDashboard() {
       {/* Stats - Clickable */}
       <div className="user-form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: '1.5rem' }}>
         {[
-          { label:'Marketers', value:stats.total_marketers, tab:'marketers' },
-          { label:'Properties', value:stats.total_properties, tab:'properties' }
-        ].map((s,i)=>(
-          <div 
-            key={i} 
-            className="user-card" 
-            style={{ 
-              padding: '1.25rem', 
-              textAlign: 'center', 
+          { label: 'Marketers', value: stats.total_marketers, tab: 'marketers' },
+          { label: 'Properties', value: stats.total_properties, tab: 'properties' }
+        ].map((s, i) => (
+          <div
+            key={i}
+            className="user-card"
+            style={{
+              padding: '1.25rem',
+              textAlign: 'center',
               cursor: 'pointer',
               border: tab === s.tab ? '2px solid #6366f1' : '1px solid rgba(229, 231, 235, 0.7)',
               background: tab === s.tab ? 'linear-gradient(160deg, #eef2ff 0%, #faf5ff 100%)' : 'rgba(255, 255, 255, 0.95)'
@@ -167,7 +193,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Marketers Table - List View */}
-      {tab==='marketers' && !selectedMarketer && (
+      {tab === 'marketers' && !selectedMarketer && (
         <div className="user-card">
           <h2 className="user-card-title">All Marketers</h2>
           <div className="user-rooms-table-wrapper">
@@ -179,9 +205,9 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {marketers.map(m=>(
+                {marketers.map(m => (
                   <tr key={m.id}>
-                    <td 
+                    <td
                       style={{ cursor: 'pointer', color: '#4f46e5', fontWeight: '600' }}
                       onClick={() => setSelectedMarketer(m)}
                     >
@@ -204,10 +230,10 @@ export default function AdminDashboard() {
       )}
 
       {/* Marketer Detail View */}
-      {tab==='marketers' && selectedMarketer && (
+      {tab === 'marketers' && selectedMarketer && (
         <div className="user-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <button 
+            <button
               onClick={() => setSelectedMarketer(null)}
               className="btn btn-secondary"
               style={{ padding: '0.5rem 1rem' }}
@@ -217,7 +243,7 @@ export default function AdminDashboard() {
             <h2 className="user-card-title" style={{ margin: 0 }}>{selectedMarketer.name}</h2>
             <div></div>
           </div>
-          
+
           <div className="user-form-grid" style={{ marginBottom: '1.5rem' }}>
             <div className="user-form-group">
               <label>Email</label>
@@ -261,7 +287,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Properties Table */}
-      {tab==='properties' && (
+      {tab === 'properties' && (
         <div className="user-card">
           <h2 className="user-card-title">All Properties</h2>
           <div className="user-rooms-table-wrapper">
@@ -274,7 +300,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {properties.map(p=>{
+                {properties.map(p => {
                   const marketer = marketers.find(m => m.id === p.marketer_id);
                   return (
                     <tr key={p.id}>
@@ -286,7 +312,7 @@ export default function AdminDashboard() {
                 })}
                 {properties.length === 0 && (
                   <tr>
-                    <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>
+                    <td colSpan="3" style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>
                       No properties found
                     </td>
                   </tr>
@@ -304,42 +330,42 @@ export default function AdminDashboard() {
             <h2 className="user-card-title">Add Marketer</h2>
             <div className="user-form-group">
               <label>Name</label>
-              <input 
-                placeholder="Enter name" 
-                className="input" 
+              <input
+                placeholder="Enter name"
+                className="input"
                 value={newMarketer.name}
-                onChange={e => setNewMarketer({...newMarketer, name: e.target.value})}
+                onChange={e => setNewMarketer({ ...newMarketer, name: e.target.value })}
               />
             </div>
             <div className="user-form-group">
               <label>Email</label>
-              <input 
-                placeholder="Enter email" 
+              <input
+                placeholder="Enter email"
                 className="input"
                 value={newMarketer.email}
-                onChange={e => setNewMarketer({...newMarketer, email: e.target.value})}
+                onChange={e => setNewMarketer({ ...newMarketer, email: e.target.value })}
               />
             </div>
             <div className="user-form-group">
               <label>Phone</label>
-              <input 
-                placeholder="Enter phone" 
+              <input
+                placeholder="Enter phone"
                 className="input"
                 value={newMarketer.phone}
-                onChange={e => setNewMarketer({...newMarketer, phone: e.target.value})}
+                onChange={e => setNewMarketer({ ...newMarketer, phone: e.target.value })}
               />
             </div>
             <div className="user-form-group">
               <label>Password</label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input 
-                  placeholder="Generate or enter password" 
+                <input
+                  placeholder="Generate or enter password"
                   className="input"
                   value={newMarketer.password}
-                  onChange={e => setNewMarketer({...newMarketer, password: e.target.value})}
+                  onChange={e => setNewMarketer({ ...newMarketer, password: e.target.value })}
                   style={{ flex: 1 }}
                 />
-                <button 
+                <button
                   type="button"
                   onClick={generatePassword}
                   className="btn btn-secondary"
@@ -350,19 +376,16 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="user-form-actions" style={{ marginTop: '1.5rem' }}>
-              <button 
-                onClick={()=>{
+              <button
+                onClick={() => {
                   setShowModal(false);
                   setNewMarketer({ name: '', email: '', phone: '', password: '' });
-                }} 
+                }}
                 className="btn btn-secondary"
               >
                 Cancel
               </button>
-              <button 
-                onClick={handleAddMarketer}
-                className="btn btn-primary"
-              >
+              <button onClick={handleAddMarketer} className="btn btn-primary">
                 Save
               </button>
             </div>

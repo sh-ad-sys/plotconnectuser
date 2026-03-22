@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import './UserDashboard.css';
+import { AlignCenter } from 'lucide-react';
 
 function Login() {
   const [loading, setLoading] = useState(false);
@@ -142,15 +143,22 @@ function Login() {
               Forgot Password?
             </button>
           </div>
+<button 
+  type="submit" 
+  className="btn btn-primary" 
+  disabled={loading} 
+  style={{ 
+    width: '100%', 
+    marginTop: '1.5rem',
+    display: 'flex',          
+    justifyContent: 'center', 
+    alignItems: 'center',     
+    textAlign: 'center'       
+  }} 
+>
+  {loading ? 'Logging in...' : 'Login'}
+</button>
 
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={loading}
-            style={{ width: '100%', marginTop: '1.5rem' }}
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
         </form>
       </div>
     </div>
