@@ -6,6 +6,8 @@ import ProtectedRoute from './features/shared/ProtectedRoute';
 import MarketerLogin from './features/marketers/MarketerLogin';
 import MarketerDashboard from './features/marketers/MarketerDashboard';
 import SetMarketerPassword from './features/marketers/SetMarketerPassword';
+import ForgotMarketerPassword from './features/marketers/ForgotMarketerPassword';
+import ResetMarketerPassword from './features/marketers/ResetMarketerPassword';
 
 function App() {
   return (
@@ -14,6 +16,8 @@ function App() {
         <Route path="/" element={<MarketerLogin />} />
 
         <Route path="/plotconnectmarketers" element={<Navigate to="/" replace />} />
+        <Route path="/forgot-password" element={<ForgotMarketerPassword />} />
+        <Route path="/reset-password" element={<ResetMarketerPassword />} />
         <Route
           path="/set-password"
           element={
